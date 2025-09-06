@@ -10,16 +10,17 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.10"
-uvicorn = "^0.23.2"
-langserve = {extras = ["server"], version = ">=0.0.30"}
-pydantic = "^2.0"
-langgraph = "^0.0.30"
-langchain-openai = "^0.1.1"
-python-dotenv = "^1.0.1"
+uvicorn = "^0.35.0"
+langserve = {extras = ["server"], version = "^0.3.1"}
+pydantic = "^2.11.0"
+langgraph = "^0.6.0"
+langchain-openai = "^0.3.0"
+langchain-community = "^0.3.0"
+python-dotenv = "^1.1.0"
 
 
 [tool.poetry.group.dev.dependencies]
-langchain-cli = ">=0.0.15"
+langchain-cli = "^0.0.37"
 
 [build-system]
 requires = ["poetry-core"]

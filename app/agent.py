@@ -1,4 +1,3 @@
-import json
 import operator
 from typing import TypedDict, Annotated, Sequence
 
@@ -6,12 +5,9 @@ from dotenv import load_dotenv
 from langchain_community.tools import PolygonLastQuote, PolygonTickerNews, PolygonFinancials, PolygonAggregates
 from langchain_community.utilities.polygon import PolygonAPIWrapper
 from langchain_core.messages import BaseMessage
-from langchain_core.messages import FunctionMessage
-from langchain_core.utils.function_calling import convert_to_openai_function
 from langchain_openai.chat_models import ChatOpenAI
 from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import ToolExecutor
-from langgraph.prebuilt import ToolInvocation
+from langgraph.prebuilt.tool_node import ToolNode
 
 from app.tools import discounted_cash_flow, owner_earnings, roic, roe
 
@@ -33,10 +29,9 @@ integration_tools = [
 local_tools = [discounted_cash_flow, roe, roic, owner_earnings]
 tools = integration_tools + local_tools
 
-tool_executor = ToolExecutor(tools)
+tool_node = ToolNode(tools)
 
-functions = [convert_to_openai_function(t) for t in tools]
-model = model.bind_functions(functions)
+model = model.bind_tools(tools)
 
 
 class AgentState(TypedDict):
@@ -47,10 +42,10 @@ class AgentState(TypedDict):
 def should_continue(state):
     messages = state['messages']
     last_message = messages[-1]
-    # If there is no function call, then we finish
-    if "function_call" not in last_message.additional_kwargs:
+    # If there are no tool calls, then we finish
+    if not last_message.tool_calls:
         return "end"
-    # Otherwise if there is, we continue
+    # Otherwise if there are, we continue
     else:
         return "continue"
 
@@ -65,21 +60,8 @@ def call_model(state):
 
 # Define the function to execute tools
 def call_tool(state):
-    messages = state['messages']
-    # Based on the continue condition
-    # we know the last message involves a function call
-    last_message = messages[-1]
-    # We construct an ToolInvocation from the function_call
-    action = ToolInvocation(
-        tool=last_message.additional_kwargs["function_call"]["name"],
-        tool_input=json.loads(last_message.additional_kwargs["function_call"]["arguments"]),
-    )
-    # We call the tool_executor and get back a response
-    response = tool_executor.invoke(action)
-    # We use the response to create a FunctionMessage
-    function_message = FunctionMessage(content=str(response), name=action.tool)
-    # We return a list, because this will get added to the existing list
-    return {"messages": [function_message]}
+    # The ToolNode will automatically execute tools based on tool_calls in the last message
+    return tool_node.invoke(state)
 
 
 # Define a new graph
